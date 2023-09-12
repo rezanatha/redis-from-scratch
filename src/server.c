@@ -24,7 +24,7 @@ int main() {
 	// Disable output buffering
 	setbuf(stdout, NULL);
 
-	unsigned int client_addr_len;
+	
 	//Property of our client address
 	struct sockaddr_in client_addr; 
 
@@ -45,7 +45,7 @@ int main() {
 	}
 	
 	// Property of our server address
-	struct sockaddr_in serv_addr = { .sin_family = AF_INET ,
+	struct sockaddr_in serv_addr = { .sin_family = AF_INET,
 									 .sin_port = htons(6379),
 									 .sin_addr = { htonl(INADDR_ANY) },
 									};
@@ -63,7 +63,7 @@ int main() {
 	}
 	
 	printf("Waiting for a client to connect...\n");
-	client_addr_len = sizeof(client_addr);
+	socklen_t client_addr_len = sizeof(client_addr);
 	
 	int client_fd = accept(server_fd, (struct sockaddr *) &client_addr, &client_addr_len);
 	if(client_fd < 0) { 
@@ -77,6 +77,5 @@ int main() {
 	}
 	
 	close(server_fd);
-
 	return 0;
 }

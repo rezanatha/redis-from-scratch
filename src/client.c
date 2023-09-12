@@ -37,6 +37,7 @@ int main() {
         printf("Unable to connect to server: %s...\n", strerror(errno));
         return 1;
     }
+    printf("Connected to server. \n");
 
     talk(client_fd);
     close(client_fd);
