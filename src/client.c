@@ -34,7 +34,7 @@ int main() {
     
     int rv = connect(client_fd, (const struct sockaddr *) &serv_addr, sizeof(serv_addr));
     if (rv) {
-        printf("Unable to connect to server: %s...\n", strerror(errno));
+        printf("Unable to connect to server: %d %s...\n", errno, strerror(errno));
         return 1;
     }
     printf("Connected to server. \n");
