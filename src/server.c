@@ -24,11 +24,7 @@ int main() {
 	// Disable output buffering
 	setbuf(stdout, NULL);
 
-	// You can use print statements as follows for debugging, they'll be visible when running tests.
-	printf("Logs from your program will appear here!\n");
-
-	int client_addr_len;
-
+	unsigned int client_addr_len;
 	//Property of our client address
 	struct sockaddr_in client_addr; 
 
@@ -40,7 +36,6 @@ int main() {
 		return 1;
 	}
 
-	int x = SO_REUSEADDR;
 	// Since the tester restarts your program quite often, setting REUSE_PORT
 	// ensures that we don't run into 'Address already in use' errors
 	int reuse = 1;

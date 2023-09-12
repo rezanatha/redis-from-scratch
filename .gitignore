@@ -1,1 +1,8 @@
 .DS_Store
+.vscode/settings.json
+src/client
+src/server
+src/server.dSYM/Contents/Resources/DWARF/server
+src/server.dSYM/Contents/Info.plist
+src/client.dSYM/Contents/Resources/DWARF/client
+src/client.dSYM/Contents/Info.plist
