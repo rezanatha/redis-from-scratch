@@ -9,6 +9,10 @@
 #include <signal.h>
 #include <assert.h>
 
+static void msg (const char* msg) {
+	fprintf(stderr, "%s\n", msg);
+}
+
 static int respond_client(int connfd){
 	char read_buffer[32] = {};
 	if(read(connfd, read_buffer, sizeof(read_buffer)-1) < 0) {

@@ -7,6 +7,10 @@
 #include <errno.h>
 #include <unistd.h>
 
+static void msg (const char* msg) {
+	fprintf(stderr, "%s\n", msg);
+}
+
 int talk (int connfd) {
     char write_buffer[] = "+PING\r\n";
 	write(connfd, write_buffer, strlen(write_buffer));
@@ -34,7 +38,8 @@ int main() {
     
     int rv = connect(client_fd, (const struct sockaddr *) &serv_addr, sizeof(serv_addr));
     if (rv) {
-        printf("Unable to connect to server: %d %s...\n", errno, strerror(errno));
+        //printf("Unable to connect to server: %d %s...\n", errno, strerror(errno));
+        msg("Unable to connect to server");
         return 1;
     }
     printf("Connected to server. \n");
