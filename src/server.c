@@ -8,7 +8,7 @@
 #include <unistd.h>
 #include <signal.h>
 
-int respond_client(int connfd){
+static int respond_client(int connfd){
 	char read_buffer[32] = {};
 	if(read(connfd, read_buffer, sizeof(read_buffer)-1) < 0) {
 		printf("read() error %s... \n", strerror(errno));
@@ -19,6 +19,36 @@ int respond_client(int connfd){
 	write(connfd, write_buffer, strlen(write_buffer));
 
 	return 0;
+}
+
+static int32_t read_full (int fd, char* buf, size_t n) {
+    while (n > 0) {
+		ssize_t rv = read(fd, buf, n);
+		if (rv <= 0) {
+			return -1;
+		}
+		assert((size_t)rv <= n);
+		n -= (size_t)rv;
+		buf += rv;
+	}
+	return 0;
+}
+
+static int32_t write_all (int fd, const char* buf, size_t n) {
+	while (n > 0) {
+		ssize_t rv = write(fd, buf, n);
+		if (rv <= 0) {
+			return -1;
+		}
+		assert((size_t)rv <= n);
+		n -= (size_t)rv;
+		buf += rv;
+	}
+	return 0;
+}
+
+static int32_t write_all () {
+
 }
 
 int main() {
@@ -47,11 +77,13 @@ int main() {
 									 .sin_addr = { htonl(INADDR_ANY) },
 									};
 	
+	//bind
 	if (bind(server_fd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) != 0) {
 		printf("Bind failed: %s \n", strerror(errno));
 		return 1;
 	}
 
+    //listen
 	if (listen(server_fd, SOMAXCONN) != 0) {
 		printf("Listen failed: %s \n", strerror(errno));
 		return 1;
@@ -70,11 +102,14 @@ int main() {
 	    	continue;
 	    }
 	    printf("Client connected\n");
-    
-	    if (respond_client(client_fd) < 0) {
-	    	printf("Unable to respond to client properly \n");
-	    }  
+        while (1) {
+			if (respond_client(client_fd) < 0) {
+	    	    printf("Unable to respond to client properly \n");
+				break;
+	        } 
+		}
+		close(server_fd);
 	}
-	close(server_fd);
+	
 	return 0;
 }
