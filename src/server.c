@@ -7,6 +7,7 @@
 #include <errno.h>
 #include <unistd.h>
 #include <signal.h>
+#include <assert.h>
 
 static int respond_client(int connfd){
 	char read_buffer[32] = {};
@@ -47,9 +48,6 @@ static int32_t write_all (int fd, const char* buf, size_t n) {
 	return 0;
 }
 
-static int32_t write_all () {
-
-}
 
 int main() {
 	// Disable output buffering
