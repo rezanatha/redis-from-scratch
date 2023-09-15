@@ -54,10 +54,9 @@ static int32_t query (int fd, const char* text) {
     char wbuf[4+k_max_msg];
     memcpy(wbuf, &len, 4);
     memcpy(&wbuf[4], text, len);
-    // int header;
-    // memcpy(&header, wbuf, 4);
-    // printf("header %d\n", header);
+
     int32_t err = write_all(fd, wbuf, 4 + len);
+
     if (err) {
         return err;
     }
@@ -95,15 +94,29 @@ static int32_t query (int fd, const char* text) {
 
 }
 
-int talk (int connfd) {
-    char write_buffer[] = "+PING\r\n";
-	write(connfd, write_buffer, strlen(write_buffer));
+int talk (int connfd, const char* message) {
+    //talk with protocols. first 4 bytes are headers: message length. remaining bytes are messages
+    //char message[] = "+PING\r\n";
+    uint32_t len = strlen(message);
+    char write_buffer[32] = {};
+    memcpy(write_buffer, &len, 4);
+    memcpy(&write_buffer[4], message, len);
+
+	int32_t wbytes = write_all(connfd, write_buffer, 4+len);
+    if (wbytes < 0) {
+        errmsg("write error");
+        return -1;
+    }
+
 	char read_buffer[32] = {};
-	if(read(connfd, read_buffer, sizeof(read_buffer)-1) < 0) {
+	if(read_full(connfd, read_buffer, 4+len) < 0) {
         errmsg("read error");
 		return -1;
 	}
-	printf("Server says: %s \n", read_buffer);
+    int32_t rlen;
+	memcpy(&rlen, read_buffer, 4);
+	printf("Server: HEADER: %d MESSAGE: %s \n", rlen, &read_buffer[4]);
+
     return 0;
 }
 
@@ -129,21 +142,22 @@ int main() {
     }
     printf("Connected to server. \n");
 
-    //talk(client_fd);
-    int32_t err = query(client_fd, "hello1");
-    if (err) {
-        goto L_DONE;
-    }
-    err = query(client_fd, "hello2");
-    if (err) {
-        goto L_DONE;
-    }
-    err = query(client_fd, "hello there baby");
-    if (err) {
-        goto L_DONE;
-    }
+    talk(client_fd, "+PING\r\n");
 
-L_DONE:
+//     int32_t err = query(client_fd, "hello1");
+//     if (err) {
+//         goto L_DONE;
+//     }
+//     err = query(client_fd, "hello2");
+//     if (err) {
+//         goto L_DONE;
+//     }
+//     err = query(client_fd, "hello there baby");
+//     if (err) {
+//         goto L_DONE;
+//     }
+
+// L_DONE:
     close(client_fd);
     return 0;
 }

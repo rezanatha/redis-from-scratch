@@ -18,19 +18,6 @@ static void errmsg (const char* msg) {
 	fprintf(stderr, "[%d] %s ... %s\n", errno, strerror(errno) ,msg);
 }
 
-static int respond_client(int connfd){
-	char read_buffer[32] = {};
-	if(read(connfd, read_buffer, sizeof(read_buffer)-1) < 0) {
-		printf("read() error %s... \n", strerror(errno));
-		return -1;
-	}
-	printf("Client says: %s \n", read_buffer);
-	char write_buffer[] = "+PONG\r\n";
-	write(connfd, write_buffer, strlen(write_buffer));
-
-	return 0;
-}
-
 const size_t k_max_msg = 4096;
 
 static int32_t read_full (int fd, char* buf, size_t n) {
@@ -105,6 +92,27 @@ static int32_t one_request (int connfd) {
     return write_all(connfd, wbuf, 4 + len);
 }
 
+static int respond_client(int connfd){
+	//respond with protocols. first 4 bytes are headers: message length. remaining bytes are messages
+	char read_buffer[32] = {};
+	if(read(connfd, read_buffer, sizeof(read_buffer)-1) < 0) {
+		printf("read() error %s... \n", strerror(errno));
+		return -1;
+	}
+	int32_t rlen;
+	memcpy(&rlen, read_buffer, 4);
+	printf("Client: HEADER: %d MESSAGE: %s \n", rlen, &read_buffer[4]);
+
+	char message[] = "+PONG\r\n";
+	int32_t wlen = strlen(message);
+	char write_buffer[32] = {};
+	memcpy(write_buffer, &wlen, 4);
+	memcpy(&write_buffer[4], message, wlen);
+	write(connfd, write_buffer, 4 + wlen);
+
+	return 0;
+}
+
 
 int main() {
 	// Disable output buffering
@@ -158,13 +166,14 @@ int main() {
 	    	continue;
 	    }
 	    printf("Client connected\n");
-        while (1) {
-			int32_t err = one_request(client_fd);
-			if (err) {
-	    	    //printf("Unable to respond to client properly \n");
-				break;
-	        } 
+        while (0) {
+			// int32_t err = one_request(client_fd);
+			// if (err) {
+	    	//     //printf("Unable to respond to client properly \n");
+			// 	break;
+	        // } 
 		}
+		respond_client(client_fd);
 		close(client_fd);
 	}
 	
