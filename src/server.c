@@ -38,7 +38,6 @@ static int32_t read_full (int fd, char* buf, size_t n) {
 	// read_full() ensures we only read n bytes of data
     while (n > 0) {
 		ssize_t rv = read(fd, buf, n);
-		printf("rv: %ld\n", rv);
 		if (rv <= 0) {
 			return -1;
 		}
@@ -80,7 +79,6 @@ static int32_t one_request (int connfd) {
 	}
 	uint32_t len = 0;
 	memcpy(&len, rbuf, 4); //assuming little endian
-	printf("len: %d\n", len);
 	if (len > k_max_msg) {
 		msg("too long");
 		return -1;
@@ -93,7 +91,7 @@ static int32_t one_request (int connfd) {
 		return err;
 	}
 
-	// do something
+	// do something with the received messages
 	rbuf[4 + len] = '\0';
 	printf("Client says: %s\n", &rbuf[4]);
 

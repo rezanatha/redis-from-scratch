@@ -54,6 +54,9 @@ static int32_t query (int fd, const char* text) {
     char wbuf[4+k_max_msg];
     memcpy(wbuf, &len, 4);
     memcpy(&wbuf[4], text, len);
+    // int header;
+    // memcpy(&header, wbuf, 4);
+    // printf("header %d\n", header);
     int32_t err = write_all(fd, wbuf, 4 + len);
     if (err) {
         return err;
