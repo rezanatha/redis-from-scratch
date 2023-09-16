@@ -10,6 +10,9 @@
 #include <signal.h>
 #include <assert.h>
 
+# define READ_BUFFER_SIZE           32
+# define WRITE_BUFFER_SIZE          32
+
 static void msg (const char* msg) {
 	fprintf(stderr, "%s\n", msg);
 }
@@ -61,18 +64,18 @@ static int32_t query (int fd, const char* text) {
         return err;
     }
 
-    //4 bytes header
-    char rbuf[4+k_max_msg+1];
+    //IO buffer: read 4 bytes header & its messages
+    char rbuf[READ_BUFFER_SIZE];
     errno = 0;
-    err = read_full(fd, rbuf, 4);
-    if (err) {
-        if (errno == 0) {
-            msg("EOF");
-        } else {
-            msg("read() error");
-        }
-        return err;
-    }    
+    err = read(fd, rbuf, READ_BUFFER_SIZE);
+    // if (err) {
+    //     if (errno == 0) {
+    //         msg("EOF");
+    //     } else {
+    //         msg("read() error");
+    //     }
+    //     return err;
+    // }    
 
 	memcpy(&len, rbuf, 4); //assuming little endian
 	if (len > k_max_msg) {
@@ -81,11 +84,11 @@ static int32_t query (int fd, const char* text) {
 	}
 
     //reply body
-    err = read_full(fd, &rbuf[4], len);
-	if (err) {
-		msg("read() error");
-		return err;
-	}
+    //err = read_full(fd, &rbuf[4], len);
+	// if (err) {
+	// 	msg("read() error");
+	// 	return err;
+	// }
 
     //do something
 	rbuf[4 + len] = '\0';
@@ -98,7 +101,7 @@ int talk (int connfd, const char* message) {
     //talk with protocols. first 4 bytes are headers: message length. remaining bytes are messages
     //char message[] = "+PING\r\n";
     uint32_t len = strlen(message);
-    char write_buffer[32] = {};
+    char write_buffer[WRITE_BUFFER_SIZE] = {};
     memcpy(write_buffer, &len, 4);
     memcpy(&write_buffer[4], message, len);
 
@@ -108,8 +111,8 @@ int talk (int connfd, const char* message) {
         return -1;
     }
 
-	char read_buffer[32] = {};
-	if(read_full(connfd, read_buffer, 4+len) < 0) {
+	char read_buffer[READ_BUFFER_SIZE] = {};
+	if(read(connfd, read_buffer, READ_BUFFER_SIZE-1) < 0) {
         errmsg("read error");
 		return -1;
 	}
@@ -142,22 +145,21 @@ int main() {
     }
     printf("Connected to server. \n");
 
-    talk(client_fd, "+PING\r\n");
+    //talk(client_fd, "+PING\r\n");
 
-//     int32_t err = query(client_fd, "hello1");
-//     if (err) {
-//         goto L_DONE;
-//     }
-//     err = query(client_fd, "hello2");
-//     if (err) {
-//         goto L_DONE;
-//     }
-//     err = query(client_fd, "hello there baby");
-//     if (err) {
-//         goto L_DONE;
-//     }
-
-// L_DONE:
+    int32_t err = query(client_fd, "hello1");
+    if (err) {
+        goto L_DONE;
+    }
+    err = query(client_fd, "hello2");
+    if (err) {
+        goto L_DONE;
+    }
+    err = query(client_fd, "hello3");
+    if (err) {
+        goto L_DONE;
+    }   
+L_DONE:
     close(client_fd);
     return 0;
 }
