@@ -138,7 +138,7 @@ int main() {
     if (err) {
         goto L_DONE;
     }
-    err = query(client_fd, "hello there baby");
+    err = query(client_fd, "hello3");
     if (err) {
         goto L_DONE;
     }
