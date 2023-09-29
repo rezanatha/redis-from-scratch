@@ -257,46 +257,58 @@ int main () {
 	//map of all client connections, key: fd
 	std::vector<Conn*> fd2conn;
 	fd_set_nb(server_fd);
-	std::vector<struct pollfd> poll_args;
+	std::vector<struct kevent> ev_args;
+
+	int kq;
+	if((kq = kqueue())  == -1) {
+		errmsg("error kqueue()");
+	}
 
 	while (1) {
-		poll_args.clear();
-		struct pollfd pfd = {server_fd, POLLIN, 0};
-		poll_args.push_back(pfd);
+	    ev_args.clear();
+		struct kevent server_ev;
+		EV_SET(&server_ev, server_fd, EVFILT_READ, EV_ADD, 0, 0, 0);
+		ev_args.push_back(server_ev);
 
 		for (Conn* conn: fd2conn) {
-			if (!conn) {
-			 	continue;
+			if(!conn) {
+				continue;
 			}
-			struct pollfd pfd = {};
-			pfd.fd = conn->fd;
-			pfd.events = (conn->state == STATE_REQ) ? POLLIN: POLLOUT;
-			pfd.events = pfd.events | POLLERR;
-			poll_args.push_back(pfd);
-
-
+			struct kevent ev;
+			ev.ident = conn->fd;
+			ev.filter = (conn->state == STATE_REQ) ? EVFILT_READ: EVFILT_WRITE;
+			ev.flags = EV_ONESHOT;
+			ev_args.push_back(ev);
 		}
+		struct timespec timeout = {0,50000};
+		int num_ev = kevent(kq, 
+		                    nullptr, 
+		                    0, 
+		                    ev_args.data(), 
+		                    ev_args.size(), 
+		                    &timeout);
 
-		int rv = poll(poll_args.data(), (nfds_t)poll_args.size(), 1000);
-		if (rv < 0) {
-			errmsg("poll");
+		if (num_ev < 0) {
+			errmsg("kevent()");
 		}
-
-		for(size_t i = 1; i < poll_args.size(); ++i) {
-			if (poll_args[i].revents) {
-				Conn* conn = fd2conn[poll_args[i].fd];
-				
-				connection_io(conn);
-			
-			    if (conn->state == STATE_END) {
-			    	fd2conn[conn->fd] = NULL;
-			    	(void)close(conn->fd);
-			    	free(conn);
-			    }
+		//printf("ev[0] %ld \n", ev_args[0].data);
+		for(size_t i = 1; i < ev_args.size(); ++i) {
+			if (ev_args[i].flags & EV_ERROR) {
+				errmsg("EV_ERROR on kevent");
 			}
-		}
+			Conn* conn = fd2conn[ev_args[i].ident];
+			connection_io(conn);
 
-		if (poll_args[0].revents) {
+			if (conn->state == STATE_END) {
+				fd2conn[conn->fd] = NULL;
+				(void)close(conn->fd);
+				free(conn);
+			}
+
+ 		}
+
+		
+		if (!(ev_args[0].flags & EV_ERROR)) {
 			(void)accept_new_conn(fd2conn, server_fd);
 		}
 

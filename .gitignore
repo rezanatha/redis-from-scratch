@@ -9,3 +9,6 @@ src/client.dSYM/Contents/Info.plist
 .vscode/c_cpp_properties.json
 src/client.dSYM/Contents/Resources/Relocations/aarch64/client.yml
 src/server.dSYM/Contents/Resources/Relocations/aarch64/server.yml
+src/client2
+src/client2.dSYM/Contents/Resources/DWARF/client2
+src/client2.dSYM/Contents/Resources/Relocations/aarch64/client2.yml
