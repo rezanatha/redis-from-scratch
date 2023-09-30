@@ -10,7 +10,28 @@ Building Redis from scratch helps greatly in understanding network programming a
 "What I cannot create, I do not understand."
 -Richard Feynmann.
 
+# Compile
+```
+g++ -Wall -Wextra -O2 -g src/server.cpp -o /bin/server -std=c++17
+g++ -Wall -Wextra -O2 -g src/server_kevent.cpp -o /bin/server_kevent -std=c++17
+g++ -Wall -Wextra -O2 -g src/client.cpp -o /bin/client -std=c++17
+g++ -Wall -Wextra -O2 -g src/client2.cpp -o /bin/client2 -std=c++17
+```
 
+# Run
+
+Run server
+```
+./bin/server or ./bin/server_kevent
+```
+To demonstrate sequential execution
+```
+./client ; ./client2 ;
+```
+To demonstrate parallel execution
+```
+./client & ./client2 
+```
 # References
 
 https://app.codecrafters.io/courses/redis/introduction
