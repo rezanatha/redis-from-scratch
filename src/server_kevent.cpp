@@ -272,6 +272,7 @@ int main () {
 	}
 
 	while (1) {
+		//check for events, do not add to kqueue() first
 		struct timespec timeout = {1,0};
 		int num_ev = kevent(kq, NULL, 0, ev_list, 2, &timeout);
 		if (num_ev < 0) {
@@ -283,27 +284,30 @@ int main () {
 				errmsg("EV_ERROR on event_fd");
 			} 
 			else if (event_fd == server_fd) {
+				//if event wants to connect to our socket, accept it
 				(void)accept_new_conn(fd2conn, event_fd);
 			}
 		}
 
+		//handle accepted connections
 		for(Conn* conn: fd2conn) {
 			if(!conn) {
 				continue;
 			}
+			//add accepted connection to the kqueue
 	        int16_t filter = (conn->state == STATE_REQ) ? EVFILT_READ: EVFILT_WRITE;
 			EV_SET(change_list, conn->fd, filter, EV_ADD, 0, 0, NULL);
 			int ev_num = kevent(kq, change_list, 1, NULL, 0, NULL);
 			if (ev_num < 0) {
 				errmsg("kevent() error");
 			}
+			/* process connection */
 			connection_io(conn);
 			if (conn->state == STATE_END) {
 			    fd2conn[conn->fd] = NULL;
 			    (void)close(conn->fd);
 			    free(conn);
 			}
-			
 		}
 	}
 	

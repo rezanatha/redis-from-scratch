@@ -17,4 +17,5 @@ src/server_kevent
 .gitignore
 .gitignore
 src/server_kevent.dSYM/Contents/Resources/Relocations/aarch64/server_kevent.yml
-.gitignore
+src/server_kevent.dSYM/Contents/Info.plist
+src/server_kevent.dSYM/Contents/Resources/DWARF/server_kevent
