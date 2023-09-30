@@ -12,3 +12,9 @@ src/server.dSYM/Contents/Resources/Relocations/aarch64/server.yml
 src/client2
 src/client2.dSYM/Contents/Resources/DWARF/client2
 src/client2.dSYM/Contents/Resources/Relocations/aarch64/client2.yml
+src/client2.dSYM/Contents/Info.plist
+src/server_kevent
+.gitignore
+.gitignore
+src/server_kevent.dSYM/Contents/Resources/Relocations/aarch64/server_kevent.yml
+.gitignore

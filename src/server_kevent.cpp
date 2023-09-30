@@ -76,7 +76,7 @@ static int32_t accept_new_conn (std::vector<Conn *> &fd2conn, int fd) {
 		//msg("accept() error");
 		return -1;
 	}
-
+	//printf("connfd %d \n", connfd);
 	fd_set_nb(connfd);
 	struct Conn* conn = (struct Conn*)malloc(sizeof(struct Conn));
 	if (!conn) {
@@ -257,62 +257,55 @@ int main () {
 	//map of all client connections, key: fd
 	std::vector<Conn*> fd2conn;
 	fd_set_nb(server_fd);
-	std::vector<struct kevent> ev_args;
 
 	int kq;
 	if((kq = kqueue())  == -1) {
 		errmsg("error kqueue()");
 	}
 
+	struct kevent change_list[10];
+	struct kevent ev_list[10];
+	EV_SET(change_list, server_fd, EVFILT_READ, EV_ADD, 0, 0, NULL);
+	int num_change_list = kevent(kq, change_list, 1, NULL, 0, NULL);
+	if (num_change_list < 0) {
+		errmsg("server kevent()");
+	}
+
 	while (1) {
-	    ev_args.clear();
-		struct kevent server_ev;
-		EV_SET(&server_ev, server_fd, EVFILT_READ, EV_ADD, 0, 0, 0);
-		ev_args.push_back(server_ev);
-
-		for (Conn* conn: fd2conn) {
-			if(!conn) {
-				continue;
-			}
-			struct kevent ev;
-			ev.ident = conn->fd;
-			ev.filter = (conn->state == STATE_REQ) ? EVFILT_READ: EVFILT_WRITE;
-			ev.flags = EV_ONESHOT;
-			ev_args.push_back(ev);
-		}
-		struct timespec timeout = {0,50000};
-		int num_ev = kevent(kq, 
-		                    nullptr, 
-		                    0, 
-		                    ev_args.data(), 
-		                    ev_args.size(), 
-		                    &timeout);
-
+		struct timespec timeout = {1,0};
+		int num_ev = kevent(kq, NULL, 0, ev_list, 2, &timeout);
 		if (num_ev < 0) {
 			errmsg("kevent()");
 		}
-		//printf("ev[0] %ld \n", ev_args[0].data);
-		for(size_t i = 1; i < ev_args.size(); ++i) {
-			if (ev_args[i].flags & EV_ERROR) {
-				errmsg("EV_ERROR on kevent");
+		for (int i = 0; i < num_ev; ++i) {
+			int event_fd = ev_list[i].ident;
+			if (ev_list[i].flags & EV_ERROR) {
+				errmsg("EV_ERROR on event_fd");
+			} 
+			else if (event_fd == server_fd) {
+				(void)accept_new_conn(fd2conn, event_fd);
 			}
-			Conn* conn = fd2conn[ev_args[i].ident];
+		}
+
+		for(Conn* conn: fd2conn) {
+			if(!conn) {
+				continue;
+			}
+	        int16_t filter = (conn->state == STATE_REQ) ? EVFILT_READ: EVFILT_WRITE;
+			EV_SET(change_list, conn->fd, filter, EV_ADD, 0, 0, NULL);
+			int ev_num = kevent(kq, change_list, 1, NULL, 0, NULL);
+			if (ev_num < 0) {
+				errmsg("kevent() error");
+			}
 			connection_io(conn);
-
 			if (conn->state == STATE_END) {
-				fd2conn[conn->fd] = NULL;
-				(void)close(conn->fd);
-				free(conn);
+			    fd2conn[conn->fd] = NULL;
+			    (void)close(conn->fd);
+			    free(conn);
 			}
-
- 		}
-
-		
-		if (!(ev_args[0].flags & EV_ERROR)) {
-			(void)accept_new_conn(fd2conn, server_fd);
+			
 		}
-
-		}
+	}
 	
 	return 0;
 }
