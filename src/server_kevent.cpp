@@ -5,13 +5,11 @@
 #include <stdio.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <poll.h>
 #include <unistd.h>
 #include <sys/socket.h>
 #include <sys/event.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
-#include <signal.h>
 #include <vector>
 
 const size_t k_max_msg = 4096;
@@ -77,7 +75,7 @@ static int32_t accept_new_conn (std::vector<Conn *> &fd2conn, int fd) {
 		return -1;
 	}
 	//printf("connfd %d \n", connfd);
-	fd_set_nb(connfd);
+	//fd_set_nb(connfd);
 	struct Conn* conn = (struct Conn*)malloc(sizeof(struct Conn));
 	if (!conn) {
 		close(connfd);
@@ -94,12 +92,12 @@ static int32_t accept_new_conn (std::vector<Conn *> &fd2conn, int fd) {
 static void state_req(Conn* conn);
 static void state_res(Conn* conn);
 
-static bool try_one_request (Conn* conn) {
+static bool try_one_request (Conn* conn, uint8_t** rbuf_ptr) {
 	if (conn->rbuf_size < 4) {
 		return false;
 	}
 	uint32_t len = 0;
-	memcpy(&len, &conn->rbuf[0], 4);
+	memcpy(&len, *(rbuf_ptr), 4);
 	if (len > k_max_msg) {
 		msg("too long");
 		conn->state = STATE_END;
@@ -110,17 +108,23 @@ static bool try_one_request (Conn* conn) {
 		return false;
 	}
 
-	printf("Client says %.*s \n", len, &conn->rbuf[4]);
+	printf("Client says %.*s \n", len, *(rbuf_ptr) + 4);
 
+    //generate echoing response
 	memcpy(&conn->wbuf[0], &len, 4);
-	memcpy(&conn->wbuf[4], &conn->rbuf[4], len);
+	memcpy(&conn->wbuf[4], *(rbuf_ptr)+4, len);
 	conn->wbuf_size = 4 + len;
 
-	size_t remain = conn->rbuf_size - 4 - len;
-	if (remain) {
-		memmove(conn->rbuf, &conn->rbuf[4+len], remain);
-	}
-	conn->rbuf_size = remain;
+    //
+	//size_t remain = conn->rbuf_size - (4 + len);
+	// printf("remain: %lu - %lu\n", conn->rbuf_size, (4 + len));
+	// if (remain) {
+	// 	memmove(conn->rbuf, &conn->rbuf[4+len], remain);
+	// }
+
+	//change rbuf_size to remaining bytes, move rbuf pointer forward 4 + length of current message steps
+	conn->rbuf_size = (size_t)(conn->rbuf_size - (4 + len));
+	*(rbuf_ptr) += (4+len);
 
 	//change state
 	conn->state = STATE_RES;
@@ -135,6 +139,7 @@ static bool try_fill_buffer (Conn* conn) {
 	do {
 		size_t cap = sizeof(conn->rbuf) - conn->rbuf_size;
 		rv = read(conn->fd, &conn->rbuf[conn->rbuf_size], cap);
+		printf("rv: %lu sizeof(conn->rbuf) %lu\n", rv, sizeof(conn->rbuf));
 	} while (rv < 0 && errno == EINTR);
 
 	if (rv < 0 && errno == EAGAIN) {
@@ -161,7 +166,8 @@ static bool try_fill_buffer (Conn* conn) {
 	conn->rbuf_size += (size_t)rv;
 	assert(conn->rbuf_size <= sizeof(conn->rbuf));
 
-	while(try_one_request(conn)) {}
+	uint8_t* rbuf_start = &conn->rbuf[0];
+	while(try_one_request(conn, &rbuf_start)){}
 	return (conn->state == STATE_REQ);
 }
 
@@ -214,7 +220,7 @@ static void connection_io (Conn* conn) {
 	}
 }
 
-int main () {
+int main (int argc, char *argv[]) {
 	// Disable output buffering
 	setbuf(stdout, NULL);
 
@@ -252,11 +258,11 @@ int main () {
 		return 1;
 	}
 	
-	printf("Waiting for a client to connect...\n");
+	printf("Waiting for client(s) to connect...\n");
 
-	//map of all client connections, key: fd
+	//map of all client connections, keyed by fd
 	std::vector<Conn*> fd2conn;
-	fd_set_nb(server_fd);
+	//fd_set_nb(server_fd);
 
 	int kq;
 	if((kq = kqueue())  == -1) {
@@ -301,10 +307,15 @@ int main () {
 			if (ev_num < 0) {
 				errmsg("kevent() error");
 			}
-			/* process connection */
+
+			//process connection
 			connection_io(conn);
+
+			//if client ends connection then disconnect
 			if (conn->state == STATE_END) {
 			    fd2conn[conn->fd] = NULL;
+				EV_SET(change_list, conn->fd, EVFILT_PROC, EV_DELETE, 0, 0, NULL);
+                kevent(kq, change_list, 1, NULL, 0, NULL);
 			    (void)close(conn->fd);
 			    free(conn);
 			}
