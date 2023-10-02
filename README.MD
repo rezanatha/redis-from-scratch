@@ -22,15 +22,16 @@ g++ -Wall -Wextra -O2 -g src/client2.cpp -o /bin/client2 -std=c++17
 
 Run server
 ```
-./bin/server or ./bin/server_kevent
+./bin/server
+./bin/server_kevent
 ```
 To demonstrate sequential execution
 ```
-./client ; ./client2 ;
+./client1; ./client2;
 ```
 To demonstrate parallel execution
 ```
-./client & ./client2 
+./client1 & ./client2 
 ```
 # References
 
