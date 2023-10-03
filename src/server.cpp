@@ -11,7 +11,6 @@
 #include <sys/event.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
-#include <signal.h>
 #include <vector>
 
 const size_t k_max_msg = 4096;
@@ -214,7 +213,7 @@ static void connection_io (Conn* conn) {
 	}
 }
 
-int main () {
+int main (int argc, char *argv[]) {
 	// Disable output buffering
 	setbuf(stdout, NULL);
 
