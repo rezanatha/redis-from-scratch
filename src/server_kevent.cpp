@@ -35,6 +35,7 @@ struct Conn {
 	//buffer for reading
     size_t rbuf_size = 0;
     uint8_t rbuf[4 + k_max_msg];
+	uint8_t* rbuf_ptr = NULL;
 	//buffer for writing
     size_t wbuf_size = 0;
 	size_t wbuf_sent = 0;
@@ -92,12 +93,12 @@ static int32_t accept_new_conn (std::vector<Conn *> &fd2conn, int fd) {
 static void state_req(Conn* conn);
 static void state_res(Conn* conn);
 
-static bool try_one_request (Conn* conn, uint8_t** rbuf_ptr) {
+static bool try_one_request (Conn* conn) {
 	if (conn->rbuf_size < 4) {
 		return false;
 	}
 	uint32_t len = 0;
-	memcpy(&len, *(rbuf_ptr), 4);
+	memcpy(&len, conn->rbuf_ptr, 4);
 	if (len > k_max_msg) {
 		msg("too long");
 		conn->state = STATE_END;
@@ -108,27 +109,27 @@ static bool try_one_request (Conn* conn, uint8_t** rbuf_ptr) {
 		return false;
 	}
 
-	printf("Client says %.*s \n", len, *(rbuf_ptr) + 4);
+	printf("Client says %.*s \n", len, conn->rbuf_ptr + 4);
 
-    //generate echoing response
-	memcpy(&conn->wbuf[0], &len, 4);
-	memcpy(&conn->wbuf[4], *(rbuf_ptr)+4, len);
-	conn->wbuf_size = 4 + len;
+    // //generate echoing response
+	// memcpy(&conn->wbuf[0], &len, 4);
+	// memcpy(&conn->wbuf[4], conn->rbuf_ptr+4, len);
+	// conn->wbuf_size = 4 + len;
 
-    //
-	//size_t remain = conn->rbuf_size - (4 + len);
-	// printf("remain: %lu - %lu\n", conn->rbuf_size, (4 + len));
-	// if (remain) {
-	// 	memmove(conn->rbuf, &conn->rbuf[4+len], remain);
-	// }
+	//generate echoing response on a same buffer array
+	
+	memcpy(&conn->wbuf[conn->wbuf_size], &len, 4);
+	memcpy(&conn->wbuf[conn->wbuf_size+4], conn->rbuf_ptr+4, len);
+	conn->wbuf_size += 4 + len;
 
 	//change rbuf_size to remaining bytes, move rbuf pointer forward 4 + length of current message steps
 	conn->rbuf_size = (size_t)(conn->rbuf_size - (4 + len));
-	*(rbuf_ptr) += (4+len);
+	conn->rbuf_ptr += (4+len);
+	assert(conn->rbuf_ptr);
 
-	//change state
-	conn->state = STATE_RES;
-	state_res(conn);
+	// multiple write call, change state to responding (STATE_RES)
+	// conn->state = STATE_RES;
+	// state_res(conn);
 
 	return (conn->state == STATE_REQ);
 }
@@ -139,7 +140,7 @@ static bool try_fill_buffer (Conn* conn) {
 	do {
 		size_t cap = sizeof(conn->rbuf) - conn->rbuf_size;
 		rv = read(conn->fd, &conn->rbuf[conn->rbuf_size], cap);
-		printf("rv: %lu sizeof(conn->rbuf) %lu\n", rv, sizeof(conn->rbuf));
+		//printf("rv: %lu \n", rv);
 	} while (rv < 0 && errno == EINTR);
 
 	if (rv < 0 && errno == EAGAIN) {
@@ -165,9 +166,17 @@ static bool try_fill_buffer (Conn* conn) {
 
 	conn->rbuf_size += (size_t)rv;
 	assert(conn->rbuf_size <= sizeof(conn->rbuf));
+     
+	//set read pointer
+	conn->rbuf_ptr = &conn->rbuf[0];
 
-	uint8_t* rbuf_start = &conn->rbuf[0];
-	while(try_one_request(conn, &rbuf_start)){}
+	while(try_one_request(conn)){}
+
+	//single buffered write call, change state to responding (STATE_RES)
+	//printf("fd: %d, wbuf size: %zu\n", conn->fd, conn->wbuf_size);
+	conn->state = STATE_RES;
+	state_res(conn);
+
 	return (conn->state == STATE_REQ);
 }
 
@@ -175,7 +184,8 @@ static bool try_flush_buffer (Conn* conn) {
 	ssize_t rv = 0;
 	do {
 		size_t remain = conn->wbuf_size - conn->wbuf_sent;
-		rv = write(conn->fd, &conn->wbuf[conn->wbuf_sent], remain);
+		uint8_t *loc = &conn->wbuf[conn->wbuf_sent];
+		rv = write(conn->fd, loc, remain);
 	} while (rv < 0 && errno == EINTR);
 
 	if (rv < 0 && errno == EAGAIN) {
@@ -202,13 +212,15 @@ static bool try_flush_buffer (Conn* conn) {
 	//still got data in wbuf, could try to write again
 	return true;
 }
+
 static void state_req (Conn* conn) {
 	while(try_fill_buffer(conn)) {}
 }
 
 static void state_res (Conn* conn) {
-	while (try_flush_buffer(conn)) {}
+	while (try_flush_buffer(conn)){};
 }
+
 
 static void connection_io (Conn* conn) {
 	if (conn->state == STATE_REQ) {
