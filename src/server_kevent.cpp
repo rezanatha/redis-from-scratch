@@ -182,10 +182,13 @@ static int32_t do_request (
 		return -1;
 	}
 	if (cmd.size() == 2 && cmd_is(cmd[0], "get")) {
+		printf("client requests: get \n");
 		*(rescode) = do_get(cmd, res, reslen);
 	} else if (cmd.size() == 3 && cmd_is(cmd[0], "set")) {
+		printf("client requests: set \n");
 		*(rescode) = do_set(cmd, res, reslen);
 	} else if (cmd.size() == 2 && cmd_is(cmd[0], "del")) {
+		printf("client requests: del \n");
 		*(rescode) = do_del(cmd, res, reslen);
 	} else {
 		*(rescode)= RES_ERR;
@@ -213,6 +216,7 @@ static bool try_one_request (Conn* conn) {
 		return false;
 	}
 
+    
 	//printf("Client says %.*s \n", len, conn->rbuf_ptr + 4);
 	uint32_t rescode = 0;
 	uint32_t wlen = 0;
@@ -263,9 +267,10 @@ static bool try_fill_buffer (Conn* conn) {
 	if (rv == 0) {
 		if (conn->rbuf_size > 0) {
 			msg("unexpected EOF");
-		} else {
-			msg("EOF");
-		}
+		} 
+		// else {
+		// 	msg("EOF");
+		// }
 		conn->state = STATE_END;
 		return false;
 	}
